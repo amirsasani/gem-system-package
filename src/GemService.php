@@ -4,6 +4,7 @@ namespace AmirSasani\GemSystem;
 
 use AmirSasani\GemSystem\Models\Gem;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class GemService
@@ -41,7 +42,14 @@ class GemService
     private function changeAmount(int $amount = 1)
     {
         DB::transaction(function () use($amount) {
-            $userGem = Gem::lockForUpdate()->firstOrCreate(['user_id' => $this->user->id]);
+            try {
+                $userGem = Gem::lockForUpdate()->firstOrCreate(['user_id' => $this->user->id]);
+            }catch (QueryException $e) {
+                $errorCode = $e->errorInfo[1];
+                if ($errorCode == 1062) {
+                    $userGem = $this->user->gem()->create();
+                }
+            }
 
             $userGem->update(['gem' => DB::raw(sprintf('gem + %d', $amount))]);
 
